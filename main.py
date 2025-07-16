@@ -24,7 +24,7 @@ def keep_alive():
     Thread(target=run_flask, daemon=True).start()
 # ------------------------------------------------------
 
-TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+TOKEN = os.getenv("BOT_TOKEN")
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 MODEL = "gpt-4o-mini"
 
