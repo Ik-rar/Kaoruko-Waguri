@@ -100,3 +100,5 @@ if __name__ == "__main__":
     dp.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_message))
     updater.start_polling()
     updater.idle()
+import sys
+print("Running Python version:", sys.version)
