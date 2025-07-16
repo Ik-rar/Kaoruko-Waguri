@@ -1,8 +1,8 @@
-
 import os
 import json
 import random
 import time
+import requests
 from flask import Flask
 from threading import Thread
 from collections import deque
@@ -120,7 +120,7 @@ def handle_message(update: Update, context: CallbackContext):
     memory[key] = user_mem
     save_memory(memory)
 
-    time.sleep(random.uniform(0.7, 1.2))
+    time.sleep(random.uniform(0.7, 1.2))  # typing delay
     update.message.reply_text(response if len(response) < 300 else response[:290] + "...")
 
 # RUNNING THE BOT
