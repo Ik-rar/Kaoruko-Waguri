@@ -6,8 +6,9 @@ import requests
 from flask import Flask
 from threading import Thread
 from collections import deque
-from telegram import Update, ChatAction
-from telegram.ext import Updater, MessageHandler, Filters, CallbackContext
+from telegram import Update
+from telegram.constants import ChatAction
+from telegram.ext import ApplicationBuilder, MessageHandler, filters, ContextTypes
 
 # ------------------ FLASK KEEP-ALIVE ------------------
 app = Flask(__name__)
@@ -85,7 +86,7 @@ def ask_openrouter(prompt, memory_context, username=""):
         return "Kaoruko got confused... 🥺"
 
 # MAIN MESSAGE HANDLER
-def handle_message(update: Update, context: CallbackContext):
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg_date = update.message.date.timestamp()
     if msg_date < START_TIME:
         return
@@ -97,11 +98,11 @@ def handle_message(update: Update, context: CallbackContext):
     user_mem = memory.setdefault(key, {})
     user_mem.setdefault("history", [])
 
-    context.bot.send_chat_action(update.effective_chat.id, ChatAction.TYPING)
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
 
     in_group = update.message.chat.type != "private"
     replied = update.message.reply_to_message and (
-        update.message.reply_to_message.from_user.id == context.bot.get_me().id
+        update.message.reply_to_message.from_user.id == context.bot.id
     )
     mentioned = any(name in msg for name in ["kaoruko", "kaoru", "waguri kaoruko"])
 
@@ -112,7 +113,8 @@ def handle_message(update: Update, context: CallbackContext):
         selfies = os.listdir(SELFIE_FOLDER)
         if selfies:
             img_path = os.path.join(SELFIE_FOLDER, random.choice(selfies))
-            return update.message.reply_photo(photo=open(img_path, "rb"))
+            await update.message.reply_photo(photo=open(img_path, "rb"))
+            return
 
     response = ask_openrouter(txt, user_mem["history"], username=key)
     user_mem["history"].append({"user": txt, "bot": response})
@@ -120,17 +122,17 @@ def handle_message(update: Update, context: CallbackContext):
     memory[key] = user_mem
     save_memory(memory)
 
-    time.sleep(random.uniform(0.7, 1.2))  # typing delay
-    update.message.reply_text(response if len(response) < 300 else response[:290] + "...")
+    await asyncio.sleep(random.uniform(0.7, 1.2))
+    await update.message.reply_text(response if len(response) < 300 else response[:290] + "...")
 
 # RUNNING THE BOT
 if __name__ == "__main__":
+    import asyncio
+
     with open(STATE_FILE, "w") as f:
         json.dump({"start_time": time.time()}, f)
 
     keep_alive()
-    updater = Updater(TOKEN, use_context=True)
-    dp = updater.dispatcher
-    dp.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_message))
-    updater.start_polling()
-    updater.idle()
+    app_telegram = ApplicationBuilder().token(TOKEN).build()
+    app_telegram.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    app_telegram.run_polling()
